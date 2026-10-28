@@ -40,10 +40,10 @@ SERVO_LIMITS = {
         'min': 4000,
         'max': 8000,
         'center': 6000,  # Neutral/stop position for continuous rotation
-        'forward_min': 5400,  # At or below this = forward (lower = faster)
-        'forward_max': 5000,  # Max forward speed
-        'reverse_min': 6600,  # At or above this = reverse (higher = faster)
-        'reverse_max': 7000,  # Max reverse speed
+        'forward_min': 6600,  # At or above this = forward (higher = faster)
+        'forward_max': 7000,  # Max forward speed
+        'reverse_min': 5400,  # At or below this = reverse (lower = faster)
+        'reverse_max': 5000,  # Max reverse speed
     },
     'right_wheel': {
         'min': 4000,

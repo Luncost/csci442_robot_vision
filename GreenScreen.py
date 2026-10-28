@@ -7,12 +7,30 @@ os.environ["DISPLAY"] = ':0.0'
 pipeline = rs.pipeline()
 config = rs.config()
 
+distance_window_name = "distance tracker"
+trackbar_name = "distance threshold (m)"
+distance_threshold = 0
+
+#-Trackbar definition------------------------
+
+def distance_threshold_change(val):
+    global distance_threshold
+    distance_threshold = val
+    cv2.setTrackbarPos(trackbar_name, distance_window_name, distance_threshold)
+
+
+#-----------END trackbar definition
+
+
 config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
 config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
 pipeline.start(config)
 
 align = rs.align(rs.stream.color)
+
+cv2.namedWindow(distance_window_name)
+cv2.createTrackbar(trackbar_name, distance_window_name, distance_threshold, 5, distance_threshold_change)
 
 try:
     while True:
@@ -39,7 +57,7 @@ try:
         # Make everything farther than 4 meters black
         color_image[depth_meters > 4.0] = 0
 
-        cv2.imshow("Less Than 4 Meters", color_image)
+        cv2.imshow(distance_window_name, color_image)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
