@@ -196,15 +196,7 @@ class RobotController:
         Returns:
             bool: True if command was valid and executed
         """
-        if not isinstance(position, (int, float)):
-            print("ERROR: Invalid tilt position (must be number)")
-            return False
-
-        position = self._clamp(float(position), 0.0, 1.0)
-        limits = SERVO_LIMITS['head_tilt']
-        value = limits['min'] + (position * (limits['max'] - limits['min']))
-
-        return self._set_servo('head_tilt', value)
+        return self._set_normalized('head_tilt', position)
 
     def set_head_pan(self, position):
         """
@@ -216,15 +208,7 @@ class RobotController:
         Returns:
             bool: True if command was valid and executed
         """
-        if not isinstance(position, (int, float)):
-            print("ERROR: Invalid pan position (must be number)")
-            return False
-
-        position = self._clamp(float(position), 0.0, 1.0)
-        limits = SERVO_LIMITS['head_pan']
-        value = limits['min'] + (position * (limits['max'] - limits['min']))
-
-        return self._set_servo('head_pan', value)
+        return self._set_normalized('head_pan', position)
 
     def _get_normalized(self, channel_name):
         """Return the last commanded position of a servo as 0.0 to 1.0."""
@@ -232,6 +216,18 @@ class RobotController:
         with self.lock:
             value = self.current_positions[channel_name]
         return (value - limits['min']) / (limits['max'] - limits['min'])
+
+    def _set_normalized(self, channel_name, position):
+        """Set a servo from a 0.0 to 1.0 position. Returns True if executed."""
+        if not isinstance(position, (int, float)):
+            print(f"ERROR: Invalid {channel_name} position (must be number)")
+            return False
+
+        position = self._clamp(float(position), 0.0, 1.0)
+        limits = SERVO_LIMITS[channel_name]
+        value = limits['min'] + (position * (limits['max'] - limits['min']))
+
+        return self._set_servo(channel_name, value)
 
     def get_head_tilt(self):
         """
@@ -263,15 +259,7 @@ class RobotController:
         Returns:
             bool: True if command was valid and executed
         """
-        if not isinstance(position, (int, float)):
-            print("ERROR: Invalid waist position (must be number)")
-            return False
-
-        position = self._clamp(float(position), 0.0, 1.0)
-        limits = SERVO_LIMITS['waist']
-        value = limits['min'] + (position * (limits['max'] - limits['min']))
-
-        return self._set_servo('waist', value)
+        return self._set_normalized('waist', position)
 
     # ==================== STATUS ====================
 

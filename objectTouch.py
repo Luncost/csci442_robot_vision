@@ -5,7 +5,19 @@ import cv2 as cv
 import os
 import robot_controller as controller
 
+import time
+
 os.environ["DISPLAY"] = ':0.0'
+
+# Pick which object to track before anything starts
+OBJECTS = {0: "red ball", 1: "masking tape", 2: "screwdriver"}
+while True:
+    choice = input("Track which object? 0 = ball, 1 = tape, 2 = screwdriver: ").strip()
+    if choice.isdigit() and int(choice) in OBJECTS:
+        TARGET_CLASS = int(choice)
+        break
+    print("Invalid choice, enter 0, 1, or 2.")
+print(f"Tracking: {OBJECTS[TARGET_CLASS]}")
 
 pipeline = rs.pipeline()
 config = rs.config()
@@ -19,7 +31,7 @@ depth_scale = profile.get_device().first_depth_sensor().get_depth_scale()
 align = rs.align(rs.stream.color)
 
 robot = controller.RobotController(simulation_mode=False)
-tiltStep = 0.05  # Head tilt per frame movement
+tiltStep = 0.01  # Head tilt per frame movement
 wheelTurnStep = 0.01
 wheelForward = 0.01
 STOP_DIST = 0.35; #Meters
@@ -56,7 +68,7 @@ try:
         
         # color_image[depth_meters > 0.5] = 0
 
-        results = model.track(color_image, persist=True, conf=0.5, imgsz=320)
+        results = model.track(color_image, persist=True, conf=0.5, imgsz=320, classes=[TARGET_CLASS])
         annotated = results[0].plot()   # BGR numpy array with boxes drawn
 
         boxes = results[0].boxes.xyxy.cpu().numpy()
@@ -81,6 +93,16 @@ try:
 
             if dist is not None and dist <= STOP_DIST:
                 robot.drive(0, 0)
+                robot._set_servo('right_elbow', 10000)
+                time.sleep(5)
+                robot._set_servo('right_shoulder1', 10000)
+                time.sleep(5)
+                #TODO: Make a for loop that puts a delay between setting the right shoulder 2
+                #       movement for n times using _get_normalized and _set_normalized
+                robot._set_servo('right_shoulder2', 7500)
+                time.sleep(5)
+                break;
+                
             else:
                 # Head tilt to meet the target y position
                 if objY < TARGET[1]:

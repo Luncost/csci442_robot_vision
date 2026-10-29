@@ -73,7 +73,7 @@ SERVO_LIMITS = {
     # Right arm - calibrated values
     'right_shoulder1': {
         'min': 4000,
-        'max': 8000,
+        'max': 10000,
         'center': 6000,
     },
     'right_shoulder2': {
@@ -83,7 +83,7 @@ SERVO_LIMITS = {
     },
     'right_elbow': {
         'min': 4000,
-        'max': 8000,
+        'max': 10000,
         'center': 6000,
     },
     'right_wrist_bend': {
