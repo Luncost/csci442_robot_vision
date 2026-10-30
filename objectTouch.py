@@ -97,10 +97,14 @@ try:
                 time.sleep(5)
                 robot._set_servo('right_shoulder1', 10000)
                 time.sleep(5)
-                #TODO: Make a for loop that puts a delay between setting the right shoulder 2
-                #       movement for n times using _get_normalized and _set_normalized
-                robot._set_servo('right_shoulder2', 7500)
-                time.sleep(5)
+
+                # Iterate over setting the right hand rightward move, so it happens at a slower rate than 
+                #        just setting the servo
+                for i in range (0, 20):
+                    robot._set_normalized('right_shoulder2', robot._get_normalized('right_shoulder2') + 0.01)
+                    time.sleep(0.05)
+
+                print("Object Touched! \n Exiting...")
                 break;
                 
             else:
