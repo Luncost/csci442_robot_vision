@@ -55,8 +55,8 @@ SERVO_LIMITS = {
         'reverse_max': 4900,  # Max reverse speed
     },
     'head_tilt': {
-        'min': 4000,
-        'max': 8000,
+        'min': 3000,
+        'max': 10000,
         'center': 6000,
     },
     'head_pan': {

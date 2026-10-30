@@ -34,7 +34,7 @@ robot = controller.RobotController(simulation_mode=False)
 tiltStep = 0.01  # Head tilt per frame movement
 wheelTurnStep = 0.01
 wheelForward = 0.01
-STOP_DIST = 0.35; #Meters
+STOP_DIST = 0.5; #Meters
 
 
 
@@ -48,6 +48,7 @@ def overlaps(a, b):
     return a[0] < b[2] and a[2] > b[0] and a[1] < b[3] and a[3] > b[1]
 
 robot.set_head_tilt(robot.get_head_tilt() - 0.1)
+robot._set_normalized('waist', robot._get_normalized('waist') - 0.05) 
 
 try:
     while True:
@@ -87,25 +88,31 @@ try:
 
             # Median depth of a small patch at the object's center, ignoring 0 (no reading)
             cx, cy = int(objX), int(objY)
-            patch = depth_meters[max(cy - 50, 0):cy + 50, max(cx - 50, 0):cx + 50]
+            patch = depth_meters[max(cy - 5, 0):cy + 5, max(cx - 5, 0):cx + 5]
             valid = patch[patch > 0]
             dist = np.median(valid) if valid.size else None
 
             if dist is not None and dist <= STOP_DIST:
                 robot.drive(0, 0)
-                robot._set_servo('right_elbow', 10000)
-                time.sleep(5)
+                robot._set_servo('right_elbow', 8000)
                 robot._set_servo('right_shoulder1', 10000)
-                time.sleep(5)
-
-                # Iterate over setting the right hand rightward move, so it happens at a slower rate than 
-                #        just setting the servo
-                for i in range (0, 20):
-                    robot._set_normalized('right_shoulder2', robot._get_normalized('right_shoulder2') + 0.01)
+                time.sleep(1)
+                #TODO: Make a for loop that puts a delay between setting the right shoulder 2
+                #       movement for n times using _get_normalized and _set_normalized
+                for i in range (0, 35):
+                    #robot._set_normalized('right_shoulder2', robot._get_normalized('right_shoulder2' + 0.01)) 
+                    robot._set_normalized('waist', robot._get_normalized('waist') + 0.01) 
                     time.sleep(0.05)
+                
+                time.sleep(1)
+                print("Object touched! \n exiting...")
 
-                print("Object Touched! \n Exiting...")
-                break;
+                for i in range (0, 35):
+                    robot._set_normalized('waist', robot._get_normalized('waist') - 0.01) 
+                    time.sleep(0.05)
+                
+                time.sleep(1)
+                break
                 
             else:
                 # Head tilt to meet the target y position
