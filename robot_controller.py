@@ -93,6 +93,11 @@ class RobotController:
             rev_max = limits['reverse_max']  # 7000 (fastest reverse)
             return rev_min + abs_speed * (rev_max - rev_min)
 
+    def _get_raw(self, channel_name):
+        with self.lock:
+            return self.current_positions[channel_name]
+
+
     def _set_servo(self, channel_name, value):
         """
         Set a servo to a specific value with safety checks.
@@ -153,6 +158,29 @@ class RobotController:
         self._set_servo('right_wheel', SERVO_LIMITS['right_wheel']['center'])
         return True
 
+    # ==================== SERVO CONTROL ====================
+
+    def _get_normalized(self, channel_name):
+      """Return the last commanded position of a servo as 0.0 to 1.0."""
+      limits = SERVO_LIMITS[channel_name]
+      with self.lock:
+          value = self.current_positions[channel_name]
+      return (value - limits['min']) / (limits['max'] - limits['min'])
+
+    def _set_normalized(self, channel_name, position):
+        """Set a servo from a 0.0 to 1.0 position. Returns True if executed."""
+        if not isinstance(position, (int, float)):
+            print(f"ERROR: Invalid {channel_name} position (must be number)")
+            return False
+
+        position = self._clamp(float(position), 0.0, 1.0)
+        limits = SERVO_LIMITS[channel_name]
+        value = limits['min'] + (position * (limits['max'] - limits['min']))
+
+        return self._set_servo(channel_name, value)
+
+
+
     # ==================== DRIVE CONTROL ====================
 
     def drive(self, left_speed, right_speed):
@@ -209,25 +237,6 @@ class RobotController:
             bool: True if command was valid and executed
         """
         return self._set_normalized('head_pan', position)
-
-    def _get_normalized(self, channel_name):
-        """Return the last commanded position of a servo as 0.0 to 1.0."""
-        limits = SERVO_LIMITS[channel_name]
-        with self.lock:
-            value = self.current_positions[channel_name]
-        return (value - limits['min']) / (limits['max'] - limits['min'])
-
-    def _set_normalized(self, channel_name, position):
-        """Set a servo from a 0.0 to 1.0 position. Returns True if executed."""
-        if not isinstance(position, (int, float)):
-            print(f"ERROR: Invalid {channel_name} position (must be number)")
-            return False
-
-        position = self._clamp(float(position), 0.0, 1.0)
-        limits = SERVO_LIMITS[channel_name]
-        value = limits['min'] + (position * (limits['max'] - limits['min']))
-
-        return self._set_servo(channel_name, value)
 
     def get_head_tilt(self):
         """
