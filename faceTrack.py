@@ -4,6 +4,8 @@ import cv2
 import robot_controller as controller
 import time
 import os
+import pickle
+from collections import deque, Counter
 
 # --------------------------------------------------
 # FACE CASCADE SETUP
@@ -77,6 +79,22 @@ TILT_DIRECTION = 1      # flip to -1 if the head moves away from the face
 cv2.namedWindow("RealSense RGB", cv2.WINDOW_NORMAL)
 cv2.setWindowProperty("RealSense RGB", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
+#--For facial recognition
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Load the trained LBPH model
+recognizer = cv2.face.LBPHFaceRecognizer_create()
+recognizer.read(os.path.join(BASE_DIR, "trainer.yml"))
+
+# Load .pickle lables
+with open(os.path.join(BASE_DIR, "labels.pickle"), "rb") as f:
+    labels = pickle.load(f)
+
+RECOGNITION_THRESHOLD = 105    # lower = better match; above this = "Unknown"
+CONF_WINDOW = 10               # number of recent frames to average over
+recent_preds = deque(maxlen=CONF_WINDOW)   # (label_id, conf) per frame
+
 # --------------------------------------------------
 # MAIN LOOP
 # --------------------------------------------------
@@ -117,7 +135,7 @@ try:
         gray = cv2.cvtColor(color_image, cv2.COLOR_BGR2GRAY)
         faces = face_cascade.detectMultiScale(
             gray,
-            scaleFactor=1.3,
+            scaleFactor=1.4,
             minNeighbors=5,
             minSize=(40, 40)
         )
@@ -135,6 +153,24 @@ try:
         if len(faces) > 0:
             # Center on the largest face vertically
             x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
+
+            # Recognize the face against the trained model
+            face_roi = gray[y:y + h, x:x + w]
+            recent_preds.append(recognizer.predict(face_roi))
+
+            # Most common label over the window, and its average confidence
+            label_id = Counter(l for l, _ in recent_preds).most_common(1)[0][0]
+            conf = np.mean([c for l, c in recent_preds if l == label_id])
+
+            if conf < RECOGNITION_THRESHOLD:
+                name = labels.get(label_id, "Unknown")
+            else:
+                name = "Unknown"
+            cv2.putText(color_image, f"{name} ({conf:.0f})", (x, max(y - 10, 20)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+
+
 
             # Find eyes in the top half of box (eliminates mouth and noze false positives)
             face_top = gray[y:y + h // 2, x:x + w]
@@ -168,11 +204,12 @@ try:
                 new_tilt = robot.get_head_tilt() + TILT_DIRECTION * step
                 robot.set_head_tilt(max(0.0, min(1.0, new_tilt)))
 
+            
 
         #---Height calculations
             #head_target = eye_y - (eye_y - y) + 10 
-            head_target = y 
-            
+            head_target = 2 * eye_y - (y + h) + 10
+
             cx = x + w // 2   # horizontal center of the face box
 
             # Median depth over a 5x5 patch, ignoring pixels with no depth 
@@ -183,18 +220,43 @@ try:
             if valid.size > 0:
                 distance = np.median(valid)
 
-                angle = (0.0241 * robot._get_raw('head_tilt')) - 133.64
+                angle = (0.0246 * robot._get_raw('head_tilt')) - 134.64
                 # Add the vertical angle from the optical center to the target pixel (above center = +)
                 angle += np.degrees(np.arctan((color_intrinsics.ppy - head_target) / color_intrinsics.fy))
                 height = distance * np.sin(np.deg2rad(angle)) + 1.016 #1.016 is the height of the camera
 
                 print(f"target height: {height * 3.28084:.2f}, ({height:.2f} Meters)")
+
+                #Distance to target
+                distance_to_front = distance * np.cos(np.deg2rad(angle))
+
+                print(f"Distance to target: {distance_to_front:.2f} Meters")
+
+                
+                if (name == "Unknown"):
+                    drive_speed = 1.0 * (5 * (distance_to_front - 2)) 
+                    if (distance_to_front < 2):
+                        robot.drive(drive_speed, drive_speed)
+                    else:
+                        robot.drive(0, 0)
+
+                else:
+                    if (distance_to_front < 0.75 or distance_to_front > 1.25):
+                        drive_speed = 1.0 * (5 * (distance_to_front - 1.0))
+                        robot.drive(drive_speed, drive_speed)
+                    else:
+                        robot.drive(0, 0)
+
             else:
                 print("no valid depth at target, skipping frame")
 
+            
         else:
+            # Face lost: clear history so the next face starts fresh
+            recent_preds.clear()
+
             # No face: sweep, resetting to start after 600 steps
-            if tilt_steps >= 600:
+            if robot._get_raw('head_tilt') >= 7800:
                 robot._set_servo('head_tilt', 5500)
                 time.sleep(0.5)
                 tilt_steps = 0
